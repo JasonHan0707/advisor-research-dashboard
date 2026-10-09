@@ -9,6 +9,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Microsoft YaHei",sans-serif}
 button,input,textarea,select{font:inherit}button{cursor:pointer}
+[hidden]{display:none!important}
 header{background:#fff;border-bottom:1px solid var(--line);padding:20px max(5vw,20px);display:flex;align-items:center;justify-content:space-between;gap:18px}
 header h1{margin:0;font-size:21px}.subtitle,.muted{color:var(--muted)}.subtitle{font-size:12px}
 main{max-width:1180px;margin:26px auto;padding:0 20px 30px}
@@ -35,432 +36,393 @@ main{max-width:1180px;margin:26px auto;padding:0 20px 30px}
 .field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:7px;padding:10px;color:var(--ink);background:#fff}
 .field textarea{min-height:90px;resize:vertical}.dialog-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .empty{color:var(--muted);padding:15px 0;font-size:13px}
+#login-panel{max-width:430px;margin:10vh auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px}
+#login-panel h1{font-size:22px;margin:0 0 5px}.error{color:var(--red);font-size:13px;min-height:20px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);color:#fff;background:#203129;border-radius:8px;padding:10px 15px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 @media(max-width:760px){header{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}.tabs{overflow-x:auto}.tabs button{white-space:nowrap}main{margin-top:18px;padding:0 13px 24px}}
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>Fubing and Supervisor's Platform</h1>
-    <div class="subtitle">博士生与导师的研究协作空间</div>
-  </div>
-  <div class="toolbar">
-    <span class="subtitle">演示版 · 数据保存在当前浏览器</span>
-    <button class="btn primary" onclick="openIssue()">＋ 新建 Issue</button>
-  </div>
-</header>
 
-<main>
-  <nav class="tabs">
-    <button class="active" data-view="overview">总览</button>
-    <button data-view="issues">Issues</button>
-    <button data-view="meetings">会议记录</button>
-    <button data-view="confirmations">状态确认</button>
-  </nav>
+<section id="login-panel">
+  <h1>Fubing and Supervisor's Platform</h1>
+  <div class="muted">请使用已创建的 Supabase 账号登录</div>
+  <form id="login-form">
+    <div class="field"><label for="login-email">邮箱</label><input id="login-email" type="email" required autocomplete="username"></div>
+    <div class="field"><label for="login-password">密码</label><input id="login-password" type="password" required autocomplete="current-password"></div>
+    <button class="btn primary" type="submit">登录</button>
+    <div id="login-error" class="error"></div>
+  </form>
+</section>
 
-  <h2 class="page-title" id="page-title">研究进度总览</h2>
-
-  <section class="view" id="overview">
-    <div class="grid">
-      <div>
-        <section class="card">
-          <div class="split">
-            <div>
-              <h2>研究进度</h2>
-              <div class="muted">按完成顺序记录阶段性成果</div>
-            </div>
-            <button class="btn primary" onclick="openCompleted()">＋ 添加已完成内容</button>
-          </div>
-          <div id="completed-list"></div>
-        </section>
-
-        <section class="card">
-          <div class="split">
-            <h2>最近的 Issues</h2>
-            <button class="btn" onclick="switchView('issues')">查看全部</button>
-          </div>
-          <div id="recent-issues"></div>
-        </section>
-      </div>
-
-      <div>
-        <section class="card">
-          <div class="split">
-            <div>
-              <h2>待确认事项</h2>
-              <div class="muted">灰色 ○ 未确认 · 绿色 ✓ 已确认 · 红色 × 不确认</div>
-            </div>
-            <button class="btn" onclick="openConfirmation()">＋ 新增</button>
-          </div>
-          <div id="overview-confirmations"></div>
-        </section>
-
-        <section class="card">
-          <div class="split">
-            <h2>最近会议</h2>
-            <button class="btn" onclick="openMeeting()">＋ 记录会议</button>
-          </div>
-          <div id="recent-meetings"></div>
-        </section>
-      </div>
+<div id="app-shell" hidden>
+  <header>
+    <div>
+      <h1>Fubing and Supervisor's Platform</h1>
+      <div class="subtitle">博士生与导师的研究协作空间</div>
     </div>
-  </section>
+    <div class="toolbar">
+      <span class="subtitle" id="signed-in-user"></span>
+      <button class="btn" onclick="signOut()">退出登录</button>
+      <button class="btn primary" onclick="openIssue()">＋ 新建 Issue</button>
+    </div>
+  </header>
 
-  <section class="view" id="issues" hidden>
-    <section class="card">
-      <div class="split">
+  <main>
+    <nav class="tabs">
+      <button class="active" data-view="overview">总览</button>
+      <button data-view="issues">Issues</button>
+      <button data-view="meetings">会议记录</button>
+      <button data-view="confirmations">状态确认</button>
+    </nav>
+
+    <h2 class="page-title" id="page-title">研究进度总览</h2>
+
+    <section class="view" id="overview">
+      <div class="grid">
         <div>
-          <h2>Issue 工作台</h2>
-          <div class="muted">记录研究问题、任务和想法；不设置负责人或期限</div>
+          <section class="card">
+            <div class="split">
+              <div><h2>研究进度</h2><div class="muted">按完成顺序记录阶段性成果</div></div>
+              <button class="btn primary" onclick="openCompleted()">＋ 添加已完成内容</button>
+            </div>
+            <div id="completed-list"></div>
+          </section>
+
+          <section class="card">
+            <div class="split"><h2>最近的 Issues</h2><button class="btn" onclick="switchView('issues')">查看全部</button></div>
+            <div id="recent-issues"></div>
+          </section>
         </div>
-        <button class="btn primary" onclick="openIssue()">＋ 新建 Issue</button>
-      </div>
-      <div id="all-issues"></div>
-    </section>
-  </section>
 
-  <section class="view" id="meetings" hidden>
-    <section class="card">
-      <div class="split">
-        <div><h2>会议记录</h2><div class="muted">记录讨论结论和会后安排</div></div>
-        <button class="btn primary" onclick="openMeeting()">＋ 记录会议</button>
-      </div>
-      <div id="all-meetings"></div>
-    </section>
-  </section>
+        <div>
+          <section class="card">
+            <div class="split">
+              <div><h2>待确认事项</h2><div class="muted">灰色 ○ 未确认 · 绿色 ✓ 已确认 · 红色 × 不确认</div></div>
+              <button class="btn" onclick="openConfirmation()">＋ 新增</button>
+            </div>
+            <div id="overview-confirmations"></div>
+          </section>
 
-  <section class="view" id="confirmations" hidden>
-    <section class="card">
-      <div class="split">
-        <div><h2>状态确认</h2><div class="muted">未确认 ○ · 已确认 ✓ · 不确认 ×</div></div>
-        <button class="btn primary" onclick="openConfirmation()">＋ 新增确认事项</button>
+          <section class="card">
+            <div class="split"><h2>最近会议</h2><button class="btn" onclick="openMeeting()">＋ 记录会议</button></div>
+            <div id="recent-meetings"></div>
+          </section>
+        </div>
       </div>
-      <div id="all-confirmations"></div>
     </section>
-  </section>
-</main>
+
+    <section class="view" id="issues" hidden>
+      <section class="card">
+        <div class="split">
+          <div><h2>Issue 工作台</h2><div class="muted">记录研究问题、任务和想法；不设置负责人或期限</div></div>
+          <button class="btn primary" onclick="openIssue()">＋ 新建 Issue</button>
+        </div>
+        <div id="all-issues"></div>
+      </section>
+    </section>
+
+    <section class="view" id="meetings" hidden>
+      <section class="card">
+        <div class="split">
+          <div><h2>会议记录</h2><div class="muted">记录讨论结论和会后安排</div></div>
+          <button class="btn primary" onclick="openMeeting()">＋ 记录会议</button>
+        </div>
+        <div id="all-meetings"></div>
+      </section>
+    </section>
+
+    <section class="view" id="confirmations" hidden>
+      <section class="card">
+        <div class="split">
+          <div><h2>状态确认</h2><div class="muted">未确认 ○ · 已确认 ✓ · 不确认 ×</div></div>
+          <button class="btn primary" onclick="openConfirmation()">＋ 新增确认事项</button>
+        </div>
+        <div id="all-confirmations"></div>
+      </section>
+    </section>
+  </main>
+</div>
 
 <div class="modal" id="modal">
   <div class="dialog">
-    <div class="dialog-head">
-      <h2 id="dialog-title"></h2>
-      <button class="close" onclick="closeModal()" aria-label="关闭">×</button>
-    </div>
+    <div class="dialog-head"><h2 id="dialog-title"></h2><button class="close" onclick="closeModal()">×</button></div>
     <div id="dialog-content"></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const defaultData = {
-  completed: [
-    "完成核心文献初步筛选",
-    "整理第一批文献的主题编码",
-    "完成预实验流程设计",
-    "初步确定正式数据采集方案"
-  ],
-  issues: [
-    {title:"访谈提纲需要再精简一轮",body:"合并相近问题，并增加一个关于决策过程的追问。",type:"需要讨论",files:[]},
-    {title:"完成第一批文献的主题编码",body:"已整理 12 篇核心文献，初步归为三个主题。",type:"研究任务",files:[]},
-    {title:"考虑加入跨案例对照分析",body:"读到一篇相关研究，可能能补强理论解释。",type:"研究想法",files:[]}
-  ],
-  meetings: [
-    {title:"每周进度讨论",body:"讨论了访谈提纲与样本招募方式。",next:"完成三位受访者的访谈整理。",date:"10月7日"}
-  ],
-  confirmations: [
-    {text:"下周先完成三位受访者的访谈整理",from:"导师",status:"pending",date:"今天"},
-    {text:"把问卷中的第 4 题改成开放式问题",from:"导师",status:"pending",date:"昨天"},
-    {text:"访谈提纲调整为半结构式",from:"我",status:"yes",date:"10月7日"}
-  ]
-};
+const SUPABASE_URL = "https://gbwqvrgovlyodzdpdgud.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_nFLH_i3DJlvAYHnlWi9_nQ_2cTbhxHV";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-let data;
-try {
-  data = JSON.parse(localStorage.getItem("research-platform-data")) || defaultData;
-  if (!data.completed) data.completed = defaultData.completed;
-} catch {
-  data = defaultData;
-}
-
-function saveData() {
-  localStorage.setItem("research-platform-data", JSON.stringify(data));
-  render();
-}
+let items = [];
+let currentUser = null;
+let realtimeChannel = null;
 
 function escapeHTML(value = "") {
   return String(value).replace(/[&<>"']/g, char => ({
     "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
   })[char]);
 }
+function rowsOf(type) { return items.filter(item => item.type === type); }
+function showToast(message) {
+  const node = document.getElementById("toast");
+  node.textContent = message;
+  node.classList.add("show");
+  setTimeout(() => node.classList.remove("show"), 2200);
+}
+function showError(error) {
+  console.error(error);
+  showToast(error.message || "发生错误，请检查网络或权限设置");
+}
+function itemDetails(item) { return item.details || {}; }
 
-function issueMarkup(issue, index) {
-  const files = (issue.files || []).map(file =>
-    `<span class="tag">📎 ${escapeHTML(file)}</span>`
-  ).join(" ");
+async function loadItems() {
+  const { data, error } = await db.from("workspace_items")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
-  return `<div class="row">
-    <div class="split">
-      <span class="issue-title">${escapeHTML(issue.title)}</span>
-      <span class="issue-actions">
-        <button onclick="editIssue(${index})">编辑</button>
-        <button onclick="deleteIssue(${index})" aria-label="删除 Issue">×</button>
-      </span>
-    </div>
-    <p class="muted">${escapeHTML(issue.body)}</p>
-    <div class="actions"><span class="tag">${escapeHTML(issue.type)}</span> ${files}</div>
-  </div>`;
+  if (error) { showError(error); return; }
+  items = data || [];
+  render();
 }
 
-function confirmationMarkup(item, index) {
-  const controls = item.status === "pending"
-    ? `<span class="actions">
-         <button class="mini" onclick="setConfirmation(${index},'yes')">确认</button>
-         <button class="mini" onclick="setConfirmation(${index},'no')">不确认</button>
-       </span>`
-    : "";
+async function saveItem(item, id = null) {
+  const payload = {
+    type: item.type,
+    title: item.title || "",
+    body: item.body || "",
+    status: item.status || "open",
+    details: item.details || {},
+    sort_order: item.sort_order || 0
+  };
 
-  const mark = item.status === "yes" ? "✓" : item.status === "no" ? "×" : "○";
-  return `<div class="confirm-row">
-    <span class="status ${item.status}">${mark}</span>
-    <div><strong>${escapeHTML(item.text)}</strong>
-      <div class="muted">${escapeHTML(item.from)} · ${escapeHTML(item.date)}</div>
-    </div>${controls}
-  </div>`;
+  const result = id
+    ? await db.from("workspace_items").update(payload).eq("id", id)
+    : await db.from("workspace_items").insert(payload);
+
+  if (result.error) { showError(result.error); return false; }
+  await loadItems();
+  return true;
 }
 
-function meetingMarkup(meeting) {
-  return `<div class="meeting">
-    <strong>${escapeHTML(meeting.title)}</strong>
-    <div class="muted">${escapeHTML(meeting.date)}</div>
-    <p>${escapeHTML(meeting.body)}</p>
-    ${meeting.next ? `<div class="muted"><strong>下一步：</strong>${escapeHTML(meeting.next)}</div>` : ""}
-  </div>`;
+async function deleteItem(id) {
+  const { error } = await db.from("workspace_items").delete().eq("id", id);
+  if (error) { showError(error); return; }
+  await loadItems();
 }
 
 function render() {
-  document.getElementById("completed-list").innerHTML = data.completed.length
-    ? data.completed.map((text, index) => `
-        <div class="numbered-item">
-          <span class="number">${index + 1}.</span>
-          <span>${escapeHTML(text)}</span>
-          <button class="mini" onclick="deleteCompleted(${index})">删除</button>
-        </div>`).join("")
-    : '<div class="empty">还没有已完成内容，点击“添加已完成内容”开始记录。</div>';
+  const completed = rowsOf("completed").sort((a,b) => a.sort_order - b.sort_order);
+  document.getElementById("completed-list").innerHTML = completed.length
+    ? completed.map((item,index) => `
+      <div class="numbered-item">
+        <span class="number">${index + 1}.</span>
+        <span>${escapeHTML(item.title)}</span>
+        <button class="mini" onclick="removeItem('${item.id}')">删除</button>
+      </div>`).join("")
+    : '<div class="empty">还没有已完成内容，点击上方按钮添加。</div>';
 
-  document.getElementById("recent-issues").innerHTML =
-    data.issues.slice(0,3).map(issueMarkup).join("") ||
-    '<div class="empty">还没有 Issue。</div>';
+  const issues = rowsOf("issue").sort((a,b) => b.created_at.localeCompare(a.created_at));
+  document.getElementById("recent-issues").innerHTML = issues.slice(0,3).map(issueMarkup).join("") || '<div class="empty">还没有 Issue。</div>';
+  document.getElementById("all-issues").innerHTML = issues.map(issueMarkup).join("") || '<div class="empty">还没有 Issue。</div>';
 
-  document.getElementById("all-issues").innerHTML =
-    data.issues.map(issueMarkup).join("") ||
-    '<div class="empty">还没有 Issue。</div>';
+  const meetings = rowsOf("meeting").sort((a,b) => b.created_at.localeCompare(a.created_at));
+  document.getElementById("recent-meetings").innerHTML = meetings.slice(0,2).map(meetingMarkup).join("") || '<div class="empty">还没有会议记录。</div>';
+  document.getElementById("all-meetings").innerHTML = meetings.map(meetingMarkup).join("") || '<div class="empty">还没有会议记录。</div>';
 
-  document.getElementById("recent-meetings").innerHTML =
-    data.meetings.slice(0,2).map(meetingMarkup).join("") ||
-    '<div class="empty">还没有会议记录。</div>';
+  const confirmations = rowsOf("confirmation").sort((a,b) => b.created_at.localeCompare(a.created_at));
+  document.getElementById("overview-confirmations").innerHTML = confirmations.map(confirmationMarkup).join("") || '<div class="empty">还没有确认事项。</div>';
+  document.getElementById("all-confirmations").innerHTML = confirmations.map(confirmationMarkup).join("") || '<div class="empty">还没有确认事项。</div>';
+}
 
-  document.getElementById("all-meetings").innerHTML =
-    data.meetings.map(meetingMarkup).join("") ||
-    '<div class="empty">还没有会议记录。</div>';
+function issueMarkup(item) {
+  const details = itemDetails(item);
+  const fileLabels = (details.files || []).map(name => `<span class="tag">📎 ${escapeHTML(name)}</span>`).join(" ");
+  return `<div class="row">
+    <div class="split">
+      <span class="issue-title">${escapeHTML(item.title)}</span>
+      <span class="issue-actions">
+        <button onclick="openIssue('${item.id}')">编辑</button>
+        <button onclick="removeItem('${item.id}')">×</button>
+      </span>
+    </div>
+    <p class="muted">${escapeHTML(item.body)}</p>
+    <div class="actions"><span class="tag">${escapeHTML(details.kind || "研究任务")}</span> ${fileLabels}</div>
+  </div>`;
+}
 
-  document.getElementById("overview-confirmations").innerHTML =
-    data.confirmations.map(confirmationMarkup).join("") ||
-    '<div class="empty">还没有确认事项。</div>';
+function meetingMarkup(item) {
+  const details = itemDetails(item);
+  return `<div class="meeting">
+    <strong>${escapeHTML(item.title)}</strong>
+    <div class="muted">${escapeHTML(details.date || "")}</div>
+    <p>${escapeHTML(item.body)}</p>
+    ${details.next ? `<div class="muted"><strong>下一步：</strong>${escapeHTML(details.next)}</div>` : ""}
+  </div>`;
+}
 
-  document.getElementById("all-confirmations").innerHTML =
-    data.confirmations.map(confirmationMarkup).join("") ||
-    '<div class="empty">还没有确认事项。</div>';
+function confirmationMarkup(item) {
+  const details = itemDetails(item);
+  const status = item.status || "pending";
+  const mark = status === "yes" ? "✓" : status === "no" ? "×" : "○";
+  const actions = status === "pending" ? `
+    <span class="actions">
+      <button class="mini" onclick="setConfirmation('${item.id}','yes')">确认</button>
+      <button class="mini" onclick="setConfirmation('${item.id}','no')">不确认</button>
+    </span>` : "";
+  return `<div class="confirm-row">
+    <span class="status ${status}">${mark}</span>
+    <div><strong>${escapeHTML(item.title)}</strong><div class="muted">${escapeHTML(details.from || "")} · ${escapeHTML(details.date || "")}</div></div>
+    ${actions}
+  </div>`;
+}
 
-  localStorage.setItem("research-platform-data", JSON.stringify(data));
+async function startApp(user) {
+  currentUser = user;
+  document.getElementById("login-panel").hidden = true;
+  document.getElementById("app-shell").hidden = false;
+  document.getElementById("signed-in-user").textContent = user.email || "";
+  await loadItems();
+
+  if (realtimeChannel) await db.removeChannel(realtimeChannel);
+  realtimeChannel = db.channel("workspace-items-live")
+    .on("postgres_changes", {event:"*", schema:"public", table:"workspace_items"}, () => loadItems())
+    .subscribe();
+}
+
+document.getElementById("login-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errorNode = document.getElementById("login-error");
+  errorNode.textContent = "正在登录…";
+
+  const { data, error } = await db.auth.signInWithPassword({email,password});
+  if (error) { errorNode.textContent = error.message; return; }
+  errorNode.textContent = "";
+  await startApp(data.user);
+});
+
+async function signOut() {
+  if (realtimeChannel) await db.removeChannel(realtimeChannel);
+  await db.auth.signOut();
+  currentUser = null;
+  document.getElementById("app-shell").hidden = true;
+  document.getElementById("login-panel").hidden = false;
+}
+
+async function removeItem(id) {
+  if (!confirm("确定删除这条内容吗？")) return;
+  await deleteItem(id);
 }
 
 function switchView(viewName) {
-  document.querySelectorAll(".view").forEach(section => {
-    section.hidden = section.id !== viewName;
-  });
-  document.querySelectorAll(".tabs button").forEach(button => {
-    button.classList.toggle("active", button.dataset.view === viewName);
-  });
-  const titles = {
-    overview:"研究进度总览", issues:"Issue 工作台",
-    meetings:"会议记录", confirmations:"状态确认"
-  };
+  document.querySelectorAll(".view").forEach(section => section.hidden = section.id !== viewName);
+  document.querySelectorAll(".tabs button").forEach(button => button.classList.toggle("active",button.dataset.view === viewName));
+  const titles = {overview:"研究进度总览",issues:"Issue 工作台",meetings:"会议记录",confirmations:"状态确认"};
   document.getElementById("page-title").textContent = titles[viewName];
 }
+document.querySelectorAll(".tabs button").forEach(button => button.addEventListener("click",() => switchView(button.dataset.view)));
 
-document.querySelectorAll(".tabs button").forEach(button =>
-  button.addEventListener("click", () => switchView(button.dataset.view))
-);
-
-function showModal(title, content) {
+function showModal(title,content) {
   document.getElementById("dialog-title").textContent = title;
   document.getElementById("dialog-content").innerHTML = content;
   document.getElementById("modal").classList.add("open");
 }
-
-function closeModal() {
-  document.getElementById("modal").classList.remove("open");
-}
-
-document.getElementById("modal").addEventListener("click", event => {
-  if (event.target.id === "modal") closeModal();
-});
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+document.getElementById("modal").addEventListener("click",event => { if(event.target.id === "modal") closeModal(); });
 
 function openCompleted() {
-  showModal("添加已完成内容", `
-    <div class="field">
-      <label for="completed-text">完成了什么？</label>
-      <textarea id="completed-text" placeholder="例如：完成 10 篇核心文献的主题编码"></textarea>
-    </div>
-    <div class="dialog-footer">
-      <button class="btn" onclick="closeModal()">取消</button>
-      <button class="btn primary" onclick="saveCompleted()">添加</button>
-    </div>`);
+  showModal("添加已完成内容",`
+    <div class="field"><label for="completed-text">完成了什么？</label><textarea id="completed-text" placeholder="例如：完成 10 篇核心文献的主题编码"></textarea></div>
+    <div class="dialog-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveCompleted()">添加</button></div>`);
+}
+async function saveCompleted() {
+  const title = document.getElementById("completed-text").value.trim();
+  if (!title) return showToast("请填写已完成内容");
+  const order = rowsOf("completed").reduce((max,item) => Math.max(max,item.sort_order),0) + 1;
+  if (await saveItem({type:"completed",title,sort_order:order})) { closeModal(); showToast("已完成内容已同步"); }
 }
 
-function saveCompleted() {
-  const text = document.getElementById("completed-text").value.trim();
-  if (!text) return showToast("请填写已完成内容");
-  data.completed.push(text);
-  saveData();
-  closeModal();
-  showToast("已完成内容已添加");
+function openIssue(id = null) {
+  const item = id ? items.find(x => x.id === id) : null;
+  const details = itemDetails(item || {});
+  showModal(item ? "编辑 Issue" : "新建 Issue",`
+    <div class="field"><label for="issue-title">标题</label><input id="issue-title" value="${escapeHTML(item?.title || "")}" placeholder="简要描述问题、任务或想法"></div>
+    <div class="field"><label for="issue-body">内容</label><textarea id="issue-body" placeholder="补充背景、进展或需要讨论的内容">${escapeHTML(item?.body || "")}</textarea></div>
+    <div class="field"><label for="issue-kind">类型</label><select id="issue-kind">
+      ${["研究任务","需要讨论","研究想法","遇到阻塞"].map(kind => `<option ${kind === (details.kind || "研究任务") ? "selected" : ""}>${kind}</option>`).join("")}
+    </select></div>
+    <div class="field"><label for="issue-files">附件</label><input id="issue-files" type="file" multiple>
+      <div class="muted">本版先同步附件文件名，实际文件上传会在下一步接入。</div></div>
+    <div class="dialog-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveIssue('${id || ""}')">保存 Issue</button></div>`);
 }
-
-function deleteCompleted(index) {
-  if (!confirm("确定删除这条已完成内容吗？")) return;
-  data.completed.splice(index, 1);
-  saveData();
-}
-
-function openIssue(index = null) {
-  const issue = index === null ? null : data.issues[index];
-  const title = issue?.title || "";
-  const body = issue?.body || "";
-  const type = issue?.type || "研究任务";
-
-  showModal(issue ? "编辑 Issue" : "新建 Issue", `
-    <div class="field"><label for="issue-title">标题</label>
-      <input id="issue-title" value="${escapeHTML(title)}" placeholder="简要描述问题、任务或想法"></div>
-    <div class="field"><label for="issue-body">内容</label>
-      <textarea id="issue-body" placeholder="补充背景、进展或需要讨论的内容">${escapeHTML(body)}</textarea></div>
-    <div class="field"><label for="issue-type">类型</label>
-      <select id="issue-type">
-        ${["研究任务","需要讨论","研究想法","遇到阻塞"].map(option =>
-          `<option ${option === type ? "selected" : ""}>${option}</option>`).join("")}
-      </select></div>
-    <div class="field"><label for="issue-files">附件</label>
-      <input id="issue-files" type="file" multiple>
-      <div class="muted">演示版只记录文件名，实际上传需要后端支持。</div></div>
-    <div class="dialog-footer">
-      <button class="btn" onclick="closeModal()">取消</button>
-      <button class="btn primary" onclick="saveIssue(${index === null ? "null" : index})">保存 Issue</button>
-    </div>`);
-}
-
-function saveIssue(index) {
+async function saveIssue(id) {
   const title = document.getElementById("issue-title").value.trim();
   if (!title) return showToast("请填写 Issue 标题");
-
-  const oldIssue = index === null ? null : data.issues[index];
-  const files = Array.from(document.getElementById("issue-files").files).map(file => file.name);
-  const issue = {
-    title,
-    body: document.getElementById("issue-body").value.trim(),
-    type: document.getElementById("issue-type").value,
-    files: files.length ? files : (oldIssue?.files || [])
-  };
-
-  if (index === null) data.issues.unshift(issue);
-  else data.issues[index] = issue;
-
-  saveData();
-  closeModal();
-  showToast("Issue 已保存在当前浏览器");
-}
-
-function editIssue(index) { openIssue(index); }
-
-function deleteIssue(index) {
-  if (!confirm("确定删除这条 Issue 吗？")) return;
-  data.issues.splice(index,1);
-  saveData();
+  const old = id ? items.find(x => x.id === id) : null;
+  const chosen = Array.from(document.getElementById("issue-files").files).map(file => file.name);
+  const details = {kind:document.getElementById("issue-kind").value,files:chosen.length ? chosen : (itemDetails(old || {}).files || [])};
+  const ok = await saveItem({type:"issue",title,body:document.getElementById("issue-body").value.trim(),details},id || null);
+  if (ok) { closeModal(); showToast("Issue 已同步"); }
 }
 
 function openMeeting() {
-  showModal("记录会议", `
-    <div class="field"><label for="meeting-title">会议名称</label>
-      <input id="meeting-title" placeholder="例如：每周进度讨论"></div>
-    <div class="field"><label for="meeting-body">讨论内容与结论</label>
-      <textarea id="meeting-body" placeholder="记录讨论重点、导师建议和决定"></textarea></div>
-    <div class="field"><label for="meeting-next">会后安排</label>
-      <textarea id="meeting-next" placeholder="每项安排一行"></textarea></div>
-    <div class="dialog-footer">
-      <button class="btn" onclick="closeModal()">取消</button>
-      <button class="btn primary" onclick="saveMeeting()">保存会议</button>
-    </div>`);
+  showModal("记录会议",`
+    <div class="field"><label for="meeting-title">会议名称</label><input id="meeting-title" placeholder="例如：每周进度讨论"></div>
+    <div class="field"><label for="meeting-body">讨论内容与结论</label><textarea id="meeting-body" placeholder="记录讨论重点、导师建议和决定"></textarea></div>
+    <div class="field"><label for="meeting-next">会后安排</label><textarea id="meeting-next" placeholder="每项安排一行"></textarea></div>
+    <div class="dialog-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveMeeting()">保存会议</button></div>`);
 }
-
-function saveMeeting() {
+async function saveMeeting() {
   const title = document.getElementById("meeting-title").value.trim();
   if (!title) return showToast("请填写会议名称");
   const body = document.getElementById("meeting-body").value.trim();
   const next = document.getElementById("meeting-next").value.trim();
-
-  data.meetings.unshift({title,body,next,date:"今天"});
-  if (next) next.split("\n").map(x => x.trim()).filter(Boolean).forEach(text => {
-    data.confirmations.unshift({text,from:"我",status:"pending",date:"刚刚"});
-  });
-
-  saveData();
+  const ok = await saveItem({type:"meeting",title,body,details:{date:new Date().toLocaleDateString("zh-CN"),next}});
+  if (!ok) return;
+  if (next) {
+    for (const text of next.split("\n").map(x => x.trim()).filter(Boolean)) {
+      await saveItem({type:"confirmation",title:text,status:"pending",details:{from:"我",date:"刚刚"}});
+    }
+  }
+  await loadItems();
   closeModal();
-  showToast("会议已保存");
+  showToast("会议和会后安排已同步");
 }
 
 function openConfirmation() {
-  showModal("新增确认事项", `
-    <div class="field"><label for="confirmation-text">事项内容</label>
-      <textarea id="confirmation-text" placeholder="写下需要确认的安排、决定或想法"></textarea></div>
-    <div class="field"><label for="confirmation-from">由谁提出</label>
-      <select id="confirmation-from"><option>我</option><option>导师</option></select></div>
-    <div class="dialog-footer">
-      <button class="btn" onclick="closeModal()">取消</button>
-      <button class="btn primary" onclick="saveConfirmation()">发布</button>
-    </div>`);
+  showModal("新增确认事项",`
+    <div class="field"><label for="confirmation-text">事项内容</label><textarea id="confirmation-text" placeholder="写下需要确认的安排、决定或想法"></textarea></div>
+    <div class="field"><label for="confirmation-from">由谁提出</label><select id="confirmation-from"><option>我</option><option>导师</option></select></div>
+    <div class="dialog-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveConfirmation()">发布</button></div>`);
+}
+async function saveConfirmation() {
+  const title = document.getElementById("confirmation-text").value.trim();
+  if (!title) return showToast("请填写确认事项");
+  const from = document.getElementById("confirmation-from").value;
+  if (await saveItem({type:"confirmation",title,status:"pending",details:{from,date:"刚刚"}})) {
+    closeModal(); showToast("确认事项已同步");
+  }
+}
+async function setConfirmation(id,status) {
+  const item = items.find(x => x.id === id);
+  if (!item) return;
+  const ok = await saveItem({...item,status},id);
+  if (ok) showToast(status === "yes" ? "已确认" : "已标记为不确认");
 }
 
-function saveConfirmation() {
-  const text = document.getElementById("confirmation-text").value.trim();
-  if (!text) return showToast("请填写确认事项");
-  data.confirmations.unshift({
-    text,
-    from:document.getElementById("confirmation-from").value,
-    status:"pending",
-    date:"刚刚"
-  });
-  saveData();
-  closeModal();
-  showToast("确认事项已添加");
-}
-
-function setConfirmation(index,status) {
-  data.confirmations[index].status = status;
-  saveData();
-  showToast(status === "yes" ? "已确认" : "已标记为不确认");
-}
-
-let toastTimer;
-function showToast(message) {
-  const toast = document.getElementById("toast");
-  toast.textContent = message;
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"),2200);
-}
-
-render();
+(async function init() {
+  const {data,error} = await db.auth.getSession();
+  if (error) { document.getElementById("login-error").textContent = error.message; return; }
+  if (data.session) await startApp(data.session.user);
+})();
 </script>
 </body>
 </html>
