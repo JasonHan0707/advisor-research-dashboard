@@ -260,7 +260,10 @@ function issueMarkup(item) {
 function meetingMarkup(item) {
   const details = itemDetails(item);
   return `<div class="meeting">
-    <strong>${escapeHTML(item.title)}</strong>
+    <div class="split">
+      <strong>${escapeHTML(item.title)}</strong>
+      <button class="mini" onclick="removeItem('${item.id}')">删除</button>
+    </div>
     <div class="muted">${escapeHTML(details.date || "")}</div>
     <p>${escapeHTML(item.body)}</p>
     ${details.next ? `<div class="muted"><strong>下一步：</strong>${escapeHTML(details.next)}</div>` : ""}
@@ -271,14 +274,21 @@ function confirmationMarkup(item) {
   const details = itemDetails(item);
   const status = item.status || "pending";
   const mark = status === "yes" ? "✓" : status === "no" ? "×" : "○";
-  const actions = status === "pending" ? `
-    <span class="actions">
+
+  const actions = `<span class="actions">
+    ${status === "pending" ? `
       <button class="mini" onclick="setConfirmation('${item.id}','yes')">确认</button>
       <button class="mini" onclick="setConfirmation('${item.id}','no')">不确认</button>
-    </span>` : "";
+    ` : ""}
+    <button class="mini" onclick="removeItem('${item.id}')">删除</button>
+  </span>`;
+
   return `<div class="confirm-row">
     <span class="status ${status}">${mark}</span>
-    <div><strong>${escapeHTML(item.title)}</strong><div class="muted">${escapeHTML(details.from || "")} · ${escapeHTML(details.date || "")}</div></div>
+    <div>
+      <strong>${escapeHTML(item.title)}</strong>
+      <div class="muted">${escapeHTML(details.from || "")} · ${escapeHTML(details.date || "")}</div>
+    </div>
     ${actions}
   </div>`;
 }
