@@ -447,7 +447,7 @@ async function startApp(user) {
   const { data: member, error } = await db
     .from("workspace_members")
     .select("role")
-    .eq("email", user.email)
+    .ilike("email", user.email)
     .maybeSingle();
 
   if (error || !member) {
