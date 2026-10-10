@@ -218,27 +218,71 @@ async function deleteItem(id) {
 }
 
 function render() {
-  const completed = rowsOf("completed").sort((a,b) => a.sort_order - b.sort_order);
+  const completed = rowsOf("completed")
+    .sort((a, b) => a.sort_order - b.sort_order);
+
   document.getElementById("completed-list").innerHTML = completed.length
-    ? completed.map((item,index) => `
-      <div class="numbered-item">
-        <span class="number">${index + 1}.</span>
-        <span>${escapeHTML(item.title)}</span>
-        <button class="mini" onclick="removeItem('${item.id}')">删除</button>
-      </div>`).join("")
+    ? completed.map((item, index) => {
+        const children = itemDetails(item).children || [];
+
+        return `
+          <div class="row">
+            <div class="split">
+              <div>
+                <span class="number">${index + 1}.</span>
+                <strong>${escapeHTML(item.title)}</strong>
+              </div>
+              <span class="actions">
+                <button class="mini" title="编辑" onclick="openCompleted('${item.id}')">✏️</button>
+                <button class="mini" onclick="removeItem('${item.id}')">删除</button>
+              </span>
+            </div>
+
+            ${children.map((child, childIndex) => `
+              <div class="numbered-item">
+                <span class="number">${index + 1}.${childIndex + 1}</span>
+                <span>${escapeHTML(child.text)}</span>
+                <button class="mini" onclick="deleteChild('${item.id}', ${childIndex})">删除</button>
+              </div>
+            `).join("")}
+
+            <button class="mini" onclick="openChild('${item.id}')">＋ 添加小成果</button>
+          </div>`;
+      }).join("")
     : '<div class="empty">还没有已完成内容，点击上方按钮添加。</div>';
 
-  const issues = rowsOf("issue").sort((a,b) => b.created_at.localeCompare(a.created_at));
-  document.getElementById("recent-issues").innerHTML = issues.slice(0,3).map(issueMarkup).join("") || '<div class="empty">还没有 Issue。</div>';
-  document.getElementById("all-issues").innerHTML = issues.map(issueMarkup).join("") || '<div class="empty">还没有 Issue。</div>';
+  const issues = rowsOf("issue")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
 
-  const meetings = rowsOf("meeting").sort((a,b) => b.created_at.localeCompare(a.created_at));
-  document.getElementById("recent-meetings").innerHTML = meetings.slice(0,2).map(meetingMarkup).join("") || '<div class="empty">还没有会议记录。</div>';
-  document.getElementById("all-meetings").innerHTML = meetings.map(meetingMarkup).join("") || '<div class="empty">还没有会议记录。</div>';
+  document.getElementById("recent-issues").innerHTML =
+    issues.slice(0, 3).map(issueMarkup).join("") ||
+    '<div class="empty">还没有 Issue。</div>';
 
-  const confirmations = rowsOf("confirmation").sort((a,b) => b.created_at.localeCompare(a.created_at));
-  document.getElementById("overview-confirmations").innerHTML = confirmations.map(confirmationMarkup).join("") || '<div class="empty">还没有确认事项。</div>';
-  document.getElementById("all-confirmations").innerHTML = confirmations.map(confirmationMarkup).join("") || '<div class="empty">还没有确认事项。</div>';
+  document.getElementById("all-issues").innerHTML =
+    issues.map(issueMarkup).join("") ||
+    '<div class="empty">还没有 Issue。</div>';
+
+  const meetings = rowsOf("meeting")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  document.getElementById("recent-meetings").innerHTML =
+    meetings.slice(0, 2).map(meetingMarkup).join("") ||
+    '<div class="empty">还没有会议记录。</div>';
+
+  document.getElementById("all-meetings").innerHTML =
+    meetings.map(meetingMarkup).join("") ||
+    '<div class="empty">还没有会议记录。</div>';
+
+  const confirmations = rowsOf("confirmation")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  document.getElementById("overview-confirmations").innerHTML =
+    confirmations.map(confirmationMarkup).join("") ||
+    '<div class="empty">还没有确认事项。</div>';
+
+  document.getElementById("all-confirmations").innerHTML =
+    confirmations.map(confirmationMarkup).join("") ||
+    '<div class="empty">还没有确认事项。</div>';
 }
 
 function issueMarkup(item) {
@@ -348,16 +392,98 @@ function showModal(title,content) {
 function closeModal() { document.getElementById("modal").classList.remove("open"); }
 document.getElementById("modal").addEventListener("click",event => { if(event.target.id === "modal") closeModal(); });
 
-function openCompleted() {
-  showModal("添加已完成内容",`
-    <div class="field"><label for="completed-text">完成了什么？</label><textarea id="completed-text" placeholder="例如：完成 10 篇核心文献的主题编码"></textarea></div>
-    <div class="dialog-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveCompleted()">添加</button></div>`);
+function openCompleted(id = null) {
+  const item = id ? items.find(x => x.id === id) : null;
+
+  showModal(item ? "编辑阶段成果" : "添加已完成内容", `
+    <div class="field">
+      <label for="completed-text">阶段成果</label>
+      <textarea id="completed-text" placeholder="例如：完成核心文献初步筛选">${escapeHTML(item?.title || "")}</textarea>
+    </div>
+    <div class="dialog-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveCompleted('${id || ""}')">保存</button>
+    </div>`);
 }
-async function saveCompleted() {
+
+async function saveCompleted(id) {
   const title = document.getElementById("completed-text").value.trim();
-  if (!title) return showToast("请填写已完成内容");
-  const order = rowsOf("completed").reduce((max,item) => Math.max(max,item.sort_order),0) + 1;
-  if (await saveItem({type:"completed",title,sort_order:order})) { closeModal(); showToast("已完成内容已同步"); }
+  if (!title) return showToast("请填写阶段成果");
+
+  const oldItem = id ? items.find(x => x.id === id) : null;
+
+  if (oldItem) {
+    const updated = await saveItem({
+      ...oldItem,
+      title,
+      details: itemDetails(oldItem)
+    }, id);
+
+    if (!updated) return;
+  } else {
+    const order = rowsOf("completed")
+      .reduce((max, item) => Math.max(max, item.sort_order), 0) + 1;
+
+    const saved = await saveItem({
+      type: "completed",
+      title,
+      sort_order: order,
+      details: { children: [] }
+    });
+
+    if (!saved) return;
+  }
+
+  closeModal();
+  showToast("阶段成果已同步");
+}
+  function openChild(parentId) {
+  showModal("添加小成果", `
+    <div class="field">
+      <label for="child-text">小成果内容</label>
+      <textarea id="child-text" placeholder="写下这个阶段完成的一项具体内容"></textarea>
+    </div>
+    <div class="dialog-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveChild('${parentId}')">添加</button>
+    </div>`);
+}
+
+async function saveChild(parentId) {
+  const text = document.getElementById("child-text").value.trim();
+  if (!text) return showToast("请填写小成果内容");
+
+  const parent = items.find(item => item.id === parentId);
+  if (!parent) return showToast("找不到所属阶段成果");
+
+  const details = itemDetails(parent);
+  const children = [...(details.children || []), { text }];
+
+  const saved = await saveItem({
+    ...parent,
+    details: { ...details, children }
+  }, parentId);
+
+  if (!saved) return;
+
+  closeModal();
+  showToast("小成果已同步");
+}
+
+async function deleteChild(parentId, childIndex) {
+  if (!confirm("确定删除这条小成果吗？")) return;
+
+  const parent = items.find(item => item.id === parentId);
+  if (!parent) return;
+
+  const details = itemDetails(parent);
+  const children = [...(details.children || [])];
+  children.splice(childIndex, 1);
+
+  await saveItem({
+    ...parent,
+    details: { ...details, children }
+  }, parentId);
 }
 
 function openIssue(id = null) {
